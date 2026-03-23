@@ -31,14 +31,28 @@ async def db_session():
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session):
     """HTTP client with DB and Redis mocked."""
-    app.dependency_overrides[get_db] = lambda: db_session
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    redis_store: dict = {}
+
+    async def mock_setex(key, ttl, value):
+        redis_store[key] = value
+
+    async def mock_get(key):
+        return redis_store.get(key)
+
+    async def mock_delete(key):
+        redis_store.pop(key, None)
 
     with patch("app.api.v1.auth.redis_client") as mock_redis:
-        mock_redis.setex = AsyncMock(return_value=True)
-        mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.delete = AsyncMock(return_value=True)
+        mock_redis.setex = mock_setex
+        mock_redis.get = mock_get
+        mock_redis.delete = mock_delete
 
-        with patch("app.db.tenant.provision_tenant_schema", new_callable=AsyncMock):
+        with patch("app.api.v1.auth.provision_tenant_schema", new_callable=AsyncMock):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as ac:

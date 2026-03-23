@@ -8,7 +8,7 @@ from app.db.base import Base
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = {"schema": "public"}  # lives in shared schema
+    __table_args__ = {}  # lives in default public schema
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
