@@ -5,6 +5,7 @@ celery_app = Celery(
     "freelancecfo",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    include=["app.tasks.parse_statement"],
 )
 
 celery_app.conf.update(
@@ -14,6 +15,3 @@ celery_app.conf.update(
     timezone="Europe/London",
     enable_utc=True,
 )
-
-# Auto-discover tasks in the tasks/ directory
-celery_app.autodiscover_tasks(["app.tasks"])

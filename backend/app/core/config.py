@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     
     # External APIs (optional at startup)
-    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     sendgrid_api_key: str = ""
