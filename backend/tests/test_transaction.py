@@ -134,3 +134,162 @@ def test_parse_csv_missing_columns():
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "missing" in str(e).lower()
+
+
+def make_mock_tx_row():
+    row = MagicMock()
+    row.id = uuid.uuid4()
+    row.date = "2024-03-01"
+    row.description = "Test payment"
+    row.amount = 500.00
+    row.currency = "GBP"
+    row.category_id = None
+    row.confidence = 1.0
+    row.source = "manual"
+    row.is_confirmed = True
+    row.notes = None
+    return row
+
+
+@pytest.mark.asyncio
+async def test_list_transactions():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.fetchall.return_value = [make_mock_tx_row()]
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/v1/transactions")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_list_transactions_with_filters():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.fetchall.return_value = []
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(
+            "/api/v1/transactions?source=manual&date_from=2024-01-01&date_to=2024-12-31"
+        )
+
+    assert response.status_code == 200
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_transaction_integrity_error():
+    from sqlalchemy.exc import IntegrityError
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=IntegrityError("fk", {}, Exception()))
+    mock_db.rollback = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post("/api/v1/transactions", json={
+            "date": "2024-03-01",
+            "description": "Test",
+            "amount": 100.0,
+            "currency": "GBP",
+            "category_id": str(uuid.uuid4()),
+        })
+
+    assert response.status_code == 400
+    assert "category_id" in response.json()["detail"]
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_confirm_transaction():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_row = make_mock_tx_row()
+    mock_row.category_id = uuid.uuid4()
+    mock_row.is_confirmed = True
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.fetchone.return_value = mock_row
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.patch(
+            f"/api/v1/transactions/{uuid.uuid4()}/confirm",
+            json={"category_id": str(uuid.uuid4())},
+        )
+
+    assert response.status_code == 200
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_confirm_transaction_not_found():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.fetchone.return_value = None
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.patch(
+            f"/api/v1/transactions/{uuid.uuid4()}/confirm",
+            json={"category_id": str(uuid.uuid4())},
+        )
+
+    assert response.status_code == 404
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_import_pdf_accepted():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    with patch("app.api.v1.transaction.parse_pdf_task") as mock_task:
+        mock_task.delay.return_value = MagicMock(id="pdf-task-id")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post(
+                "/api/v1/transactions/import/pdf",
+                files={"file": ("statement.pdf", b"%PDF-fake", "application/pdf")},
+            )
+
+    assert response.status_code == 202
+    assert "task_id" in response.json()
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_import_pdf_invalid_extension():
+    mock_user = make_mock_user()
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post(
+            "/api/v1/transactions/import/pdf",
+            files={"file": ("statement.txt", b"not a pdf", "text/plain")},
+        )
+
+    assert response.status_code == 400
+    app.dependency_overrides.clear()

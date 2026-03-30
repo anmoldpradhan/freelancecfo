@@ -41,6 +41,9 @@ google-genai
 python-multipart==0.0.12   # needed for FastAPI file uploads
 celery[redis]==5.4.0        # update existing celery line
 weasyprint==62.3
+pydyf==0.10.0
 sendgrid==6.11.0
 boto3==1.35.36
 jinja2==3.1.4
+stripe==10.12.0
+websockets==13.1

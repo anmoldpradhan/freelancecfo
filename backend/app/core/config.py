@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    frontend_url: str = "http://localhost:3000"
     sendgrid_api_key: str = ""
     aws_s3_bucket: str = ""
     aws_access_key_id: str = ""

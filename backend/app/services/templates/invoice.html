@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fff;
+    }
+    .page {
+      padding: 48px;
+    }
+
+    /* ── Header ── */
+    .header-table {
+      display: table;
+      width: 100%;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #6c63ff;
+    }
+    .header-left, .header-right {
+      display: table-cell;
+      vertical-align: top;
+    }
+    .header-right { text-align: right; }
+    .brand { font-size: 26px; font-weight: 800; color: #6c63ff; }
+    .brand-sub { color: #888; font-size: 12px; margin-top: 4px; }
+    .invoice-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #6c63ff;
+      margin-bottom: 6px;
+    }
+    .invoice-meta p { color: #555; margin: 2px 0; font-size: 12px; }
+
+    /* ── Status badge ── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+    .badge-paid     { background: #d4edda; color: #155724; }
+    .badge-overdue  { background: #f8d7da; color: #721c24; }
+    .badge-default  { background: #fff3cd; color: #856404; }
+
+    /* ── Parties ── */
+    .parties-table {
+      display: table;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+    .party-cell {
+      display: table-cell;
+      width: 50%;
+      vertical-align: top;
+      padding-right: 24px;
+    }
+    .party-cell:last-child { padding-right: 0; }
+    .party-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+    .party-name { font-weight: 700; font-size: 13px; color: #1a1a2e; margin-bottom: 2px; }
+    .party-detail { color: #555; font-size: 12px; line-height: 1.6; }
+
+    /* ── Line items table ── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    .items-table thead tr {
+      background: #6c63ff;
+      color: #fff;
+    }
+    .items-table thead th {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+    .items-table thead th.r { text-align: right; }
+    .items-table tbody tr { border-bottom: 1px solid #efefef; }
+    .items-table tbody tr:nth-child(even) { background: #fafafa; }
+    .items-table tbody td {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #333;
+    }
+    .items-table tbody td.r { text-align: right; font-weight: 500; }
+
+    /* ── Totals ── */
+    .totals-wrapper {
+      display: table;
+      width: 100%;
+      margin-bottom: 48px;
+    }
+    .totals-spacer { display: table-cell; width: 55%; }
+    .totals-block  { display: table-cell; width: 45%; vertical-align: top; }
+    .totals-row {
+      display: table;
+      width: 100%;
+      padding: 7px 0;
+      border-bottom: 1px solid #efefef;
+    }
+    .totals-row .t-label { display: table-cell; color: #666; font-size: 13px; }
+    .totals-row .t-value { display: table-cell; text-align: right; color: #333; font-size: 13px; }
+    .totals-row.grand {
+      border-bottom: none;
+      border-top: 2px solid #6c63ff;
+      margin-top: 6px;
+      padding-top: 10px;
+    }
+    .totals-row.grand .t-label,
+    .totals-row.grand .t-value {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1a1a2e;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      color: #bbb;
+      font-size: 11px;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header-table">
+    <div class="header-left">
+      <div class="brand">FreelanceCFO</div>
+      {% if trading_name %}<div class="brand-sub">{{ trading_name }}</div>{% endif %}
+    </div>
+    <div class="header-right invoice-meta">
+      <div class="invoice-title">INVOICE</div>
+      <p><strong># {{ invoice_number }}</strong></p>
+      <p>Issued: {{ issued_date }}</p>
+      {% if due_date %}<p>Due: {{ due_date }}</p>{% endif %}
+      <div>
+        <span class="badge {% if status == 'paid' %}badge-paid{% elif status == 'overdue' %}badge-overdue{% else %}badge-default{% endif %}">
+          {{ status }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="parties-table">
+    <div class="party-cell">
+      <div class="party-label">From</div>
+      <div class="party-name">{{ from_name }}</div>
+      {% if from_address %}
+        {% for line in from_address.splitlines() %}
+        <div class="party-detail">{{ line }}</div>
+        {% endfor %}
+      {% endif %}
+      {% if vat_number %}<div class="party-detail">VAT: {{ vat_number }}</div>{% endif %}
+    </div>
+    <div class="party-cell">
+      <div class="party-label">Bill To</div>
+      <div class="party-name">{{ client_name }}</div>
+      {% if client_email %}<div class="party-detail">{{ client_email }}</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- Line items -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="r">Qty</th>
+        <th class="r">Unit Price</th>
+        <th class="r">Amount ({{ currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in line_items %}
+      <tr>
+        <td>{{ item.description }}</td>
+        <td class="r">{{ item.quantity }}</td>
+        <td class="r">{{ "%.2f"|format(item.unit_price | float) }}</td>
+        <td class="r">{{ "%.2f"|format(item.quantity | float * (item.unit_price | float)) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="totals-wrapper">
+    <div class="totals-spacer"></div>
+    <div class="totals-block">
+      <div class="totals-row">
+        <span class="t-label">Subtotal</span>
+        <span class="t-value">{{ currency }} {{ "%.2f"|format(subtotal | float) }}</span>
+      </div>
+      {% if tax_rate | float > 0 %}
+      <div class="totals-row">
+        <span class="t-label">VAT ({{ tax_rate }}%)</span>
+        <span class="t-value">{{ currency }} {{ "%.2f"|format(subtotal | float * (tax_rate | float) / 100) }}</span>
+      </div>
+      {% endif %}
+      <div class="totals-row grand">
+        <span class="t-label">Total Due</span>
+        <span class="t-value">{{ currency }} {{ "%.2f"|format(total | float) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Thank you for your business.</p>
+    <p style="margin-top:3px">Generated by FreelanceCFO &middot; {{ issued_date }}</p>
+  </div>
+
+</div>
+</body>
+</html>
