@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # ── Gemini client ─────────────────────────────────────────────────────────────
 genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel("gemini-2.0-flash-lite")
+model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 BATCH_SIZE = 25          # transactions per API call
