@@ -179,3 +179,74 @@ def test_vat_boundary_exactly_at_threshold():
 def test_vat_registered_flag():
     status = calculate_vat_status(Decimal("50_000"), True)
     assert status.vat_registered is True
+
+
+# ── fetch_ytd_figures (async DB) ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_fetch_ytd_figures_success():
+    from app.services.tax_engine import fetch_ytd_figures
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_row = MagicMock()
+    mock_row.gross_income = Decimal("40_000")
+    mock_row.allowable_expenses = Decimal("8_000")
+
+    mock_result = MagicMock()
+    mock_result.fetchone.return_value = mock_row
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    gross, expenses = await fetch_ytd_figures("tenant_abc", mock_db)
+
+    assert gross == Decimal("40000")
+    assert expenses == Decimal("8000")
+
+
+@pytest.mark.asyncio
+async def test_fetch_ytd_figures_db_error_returns_zeros():
+    from app.services.tax_engine import fetch_ytd_figures
+    from unittest.mock import AsyncMock
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=Exception("connection refused"))
+
+    gross, expenses = await fetch_ytd_figures("tenant_abc", mock_db)
+
+    assert gross == Decimal("0")
+    assert expenses == Decimal("0")
+
+
+# ── fetch_rolling_12m_income (async DB) ───────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_fetch_rolling_12m_income_success():
+    from app.services.tax_engine import fetch_rolling_12m_income
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_row = MagicMock()
+    mock_row.rolling_income = Decimal("75_000")
+
+    mock_result = MagicMock()
+    mock_result.fetchone.return_value = mock_row
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    income = await fetch_rolling_12m_income("tenant_abc", mock_db)
+
+    assert income == Decimal("75000")
+
+
+@pytest.mark.asyncio
+async def test_fetch_rolling_12m_income_db_error_returns_zero():
+    from app.services.tax_engine import fetch_rolling_12m_income
+    from unittest.mock import AsyncMock
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=Exception("timeout"))
+
+    income = await fetch_rolling_12m_income("tenant_abc", mock_db)
+
+    assert income == Decimal("0")

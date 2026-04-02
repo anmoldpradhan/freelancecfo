@@ -29,6 +29,7 @@ async def get_profile(
         vat_registered=row.vat_registered,
         utr_number="••••••••" if row.utr_number else None,  # mask in response
         stripe_account_id=row.stripe_account_id,
+        telegram_chat_id=row.telegram_chat_id,
     )
 
 

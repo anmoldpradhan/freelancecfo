@@ -11,7 +11,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://13.53.56.157:8000
+    restart: always
+    depends_on:
+      - app
   celery_worker:
     build: ./backend
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
