@@ -8,6 +8,8 @@ from app.api.v1.transaction import router as transactions_router
 from app.api.v1.invoices import router as invoices_router
 from app.api.v1.stripe_webhooks import router as stripe_router
 from app.core.websocket_manager import ws_manager
+from app.api.v1.tax import router as tax_router
+
 from app.core.security import decode_token
 from jose import JWTError
 from app.api.v1.cfo import router as cfo_router
@@ -43,6 +45,7 @@ app.include_router(transactions_router)
 app.include_router(invoices_router)
 app.include_router(stripe_router)
 app.include_router(cfo_router)
+app.include_router(tax_router)
 
 @app.get("/health", tags=["system"])
 async def health_check():

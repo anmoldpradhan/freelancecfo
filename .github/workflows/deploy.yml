@@ -1,0 +1,84 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]    # only deploy from main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
+
+      - name: Run tests + coverage gate
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: ci-test-secret-key
+          ENVIRONMENT: test
+          GEMINI_API_KEY: ""
+        run: |
+          pytest tests/ -v \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
+  deploy:
+    needs: test           # deploy only if tests pass
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /home/${{ secrets.EC2_USER }}/freelancecfo
+
+            # Pull latest code
+            git pull origin main
+
+            # Run migrations inside container before restart
+            docker compose -f docker-compose.prod.yml run --rm app \
+              alembic upgrade head
+
+            # Rebuild and restart all services
+            docker compose -f docker-compose.prod.yml up --build -d
+
+            # Remove dangling images to save disk space
+            docker image prune -f
+
+            echo "✅ Deploy complete"
