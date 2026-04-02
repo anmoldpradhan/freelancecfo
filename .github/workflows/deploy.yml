@@ -2,11 +2,13 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [main]    # only deploy from main
+    branches: [main]
 
 jobs:
+  # ── Job 1: Run tests first ────────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -20,9 +22,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+
       redis:
         image: redis:7-alpine
         ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +43,7 @@ jobs:
         working-directory: ./backend
         run: pip install -r requirements.txt
 
-      - name: Run tests + coverage gate
+      - name: Run tests
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql+asyncpg://test_user:test_pass@localhost:5432/test_db
@@ -43,42 +51,58 @@ jobs:
           SECRET_KEY: ci-test-secret-key
           ENVIRONMENT: test
           GEMINI_API_KEY: ""
+          STRIPE_SECRET_KEY: ""
+          STRIPE_WEBHOOK_SECRET: ""
+          SENDGRID_API_KEY: ""
+          AWS_S3_BUCKET: ""
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          TELEGRAM_BOT_TOKEN: ""
         run: |
           pytest tests/ -v \
             --cov=app \
-            --cov-report=term-missing \
             --cov-fail-under=80
 
+  # ── Job 2: Deploy (only runs if tests pass) ───────────────────────────────
   deploy:
-    needs: test           # deploy only if tests pass
+    needs: test           # this line makes deploy wait for test job
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: success()         # only deploy if test job succeeded
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to EC2 via SSH
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # set -e means: stop script immediately if any command fails
           script: |
             set -e
 
+            echo "🚀 Starting deployment..."
+
             cd /home/${{ secrets.EC2_USER }}/freelancecfo
 
-            # Pull latest code
-            git pull origin main
+            echo "📥 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
 
-            # Run migrations inside container before restart
-            docker compose -f docker-compose.prod.yml run --rm app \
-              alembic upgrade head
+            echo "🗄️ Running database migrations..."
+            docker compose -f docker-compose.prod.yml run --rm \
+              -e DATABASE_URL \
+              app alembic upgrade head
 
-            # Rebuild and restart all services
+            echo "🏗️ Rebuilding containers..."
             docker compose -f docker-compose.prod.yml up --build -d
 
-            # Remove dangling images to save disk space
+            echo "⏳ Waiting for app to be healthy..."
+            sleep 10
+
+            echo "🔍 Health check..."
+            curl --fail http://localhost:8000/health || exit 1
+
+            echo "🧹 Cleaning up old images..."
             docker image prune -f
 
-            echo "✅ Deploy complete"
+            echo "✅ Deployment complete!"
