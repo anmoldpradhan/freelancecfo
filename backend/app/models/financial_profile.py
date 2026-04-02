@@ -24,5 +24,5 @@ class FinancialProfile(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(50))
     user: Mapped["User"] = relationship(back_populates="financial_profile")

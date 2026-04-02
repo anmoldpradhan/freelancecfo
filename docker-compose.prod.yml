@@ -37,6 +37,20 @@ services:
     env_file: .env.prod
     restart: always
 
+  telegram_bot:
+    build: ./backend
+    command: python -c "from app.services.telegram_bot import run_bot; run_bot()"
+    env_file: .env.prod
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   db:
     image: postgres:15-alpine
     env_file: .env.prod

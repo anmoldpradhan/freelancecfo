@@ -107,6 +107,19 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
 
+  telegram_bot:
+      build: ./backend
+      command: python -c "from app.services.telegram_bot import run_bot; run_bot()"
+      env_file: .env
+      restart: always
+      dns:
+        - 8.8.8.8
+        - 8.8.4.4
+      depends_on:
+        - app
+        - redis
+        - db
+        
 volumes:
   postgres_data:
   redis_data:

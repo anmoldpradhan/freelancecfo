@@ -8,6 +8,7 @@ from app.models.user import User
 from app.services.tax_engine import (
     build_tax_estimate, fetch_ytd_figures,
     fetch_rolling_12m_income, calculate_vat_status,
+    TaxEstimate,
 )
 from app.services.forecaster import build_cashflow_forecast
 
@@ -22,7 +23,7 @@ async def tax_estimate(
     """Real-time Self Assessment estimate based on YTD transactions."""
     gross, expenses = await fetch_ytd_figures(current_user.tenant_schema, db)
     estimate = build_tax_estimate(gross, expenses)
-
+    await _save_estimate(current_user.tenant_schema, estimate, db)
     return {
         "tax_year": estimate.tax_year,
         "gross_income": float(estimate.gross_income),
@@ -41,6 +42,33 @@ async def tax_estimate(
         ),
     }
 
+# In /api/v1/tax.py — add after building estimate:
+
+async def _save_estimate(
+    tenant_schema: str,
+    estimate: TaxEstimate,
+    db: AsyncSession,
+):
+    await db.execute(text(f"""
+        INSERT INTO "{tenant_schema}".tax_estimates
+            (tax_year, gross_income, allowable_expenses, net_profit,
+             income_tax, ni_class2, ni_class4, total_liability,
+             vat_rolling_12m)
+        VALUES
+            (:tax_year, :gross, :expenses, :net,
+             :income_tax, :ni2, :ni4, :total, 0)
+        ON CONFLICT DO NOTHING
+    """), {
+        "tax_year": estimate.tax_year,
+        "gross": float(estimate.gross_income),
+        "expenses": float(estimate.allowable_expenses),
+        "net": float(estimate.net_profit),
+        "income_tax": float(estimate.income_tax),
+        "ni2": float(estimate.ni_class2),
+        "ni4": float(estimate.ni_class4),
+        "total": float(estimate.total_liability),
+    })
+    await db.commit()
 
 @router.get("/api/v1/tax/breakdown")
 async def tax_breakdown(
@@ -52,6 +80,7 @@ async def tax_breakdown(
     estimate = build_tax_estimate(gross, expenses)
     it = estimate.income_tax_breakdown
     ni = estimate.ni_breakdown
+    await _save_estimate(current_user.tenant_schema, estimate, db)
 
     return {
         "tax_year": estimate.tax_year,
@@ -169,3 +198,4 @@ async def vat_forecast(
             else None
         ),
     }
+

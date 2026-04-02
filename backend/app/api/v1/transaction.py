@@ -217,3 +217,76 @@ async def import_pdf(
         task_id=task.id,
         message=f"Processing {file.filename}. Check /tasks/{task.id} for status.",
     )
+
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Polls Celery task status for CSV/PDF import jobs.
+    Frontend calls this after receiving task_id from import endpoint.
+    """
+    result = AsyncResult(task_id, app=celery_app)
+
+    if result.state == "PENDING":
+        return {"task_id": task_id, "status": "pending", "result": None}
+    elif result.state == "SUCCESS":
+        return {"task_id": task_id, "status": "complete", "result": result.result}
+    elif result.state == "FAILURE":
+        return {"task_id": task_id, "status": "failed",
+                "result": str(result.result)}
+    else:
+        return {"task_id": task_id, "status": result.state, "result": None}
+    
+
+@router.get("/categories")
+async def list_categories(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns all categories for this tenant."""
+    schema = current_user.tenant_schema
+    result = await db.execute(text(f"""
+        SELECT id, name, type, is_system
+        FROM "{schema}".categories
+        ORDER BY type, name
+    """))
+    rows = result.fetchall()
+    return [
+        {
+            "id": str(r.id),
+            "name": r.name,
+            "type": r.type,
+            "is_system": r.is_system,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/categories", status_code=201)
+async def create_category(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Creates a custom category for this tenant."""
+    schema = current_user.tenant_schema
+    name = payload.get("name", "").strip()
+    cat_type = payload.get("type", "expense")
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    if cat_type not in ("income", "expense"):
+        raise HTTPException(status_code=400, detail="Type must be income or expense")
+
+    result = await db.execute(text(f"""
+        INSERT INTO "{schema}".categories (name, type, is_system)
+        VALUES (:name, :type, FALSE)
+        RETURNING id, name, type, is_system
+    """), {"name": name, "type": cat_type})
+    await db.commit()
+    row = result.fetchone()
+    return {"id": str(row.id), "name": row.name,
+            "type": row.type, "is_system": row.is_system}
