@@ -13,6 +13,7 @@ from app.api.v1.profile import router as profile_router
 from app.core.security import decode_token
 from jose import JWTError
 from app.api.v1.cfo import router as cfo_router
+from app.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,7 +35,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[settings.frontend_url, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
