@@ -100,11 +100,11 @@ jobs:
               ./backend
 
             echo "🗄️ Running migrations..."
-            docker compose -f docker-compose.prod.yml run --rm app \
+            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm app \
               alembic upgrade head
 
             echo "🚀 Starting services..."
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
             echo "⏳ Waiting for health check..."
             sleep 15
