@@ -80,37 +80,30 @@ jobs:
           # set -e means: stop script immediately if any command fails
           script: |
             set -e
+
             echo "🚀 Starting deployment..."
+
             cd /home/${{ secrets.EC2_USER }}/freelancecfo
 
             echo "📥 Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
 
-            echo "🏗️ Building frontend image..."
-            docker build \
-              --build-arg NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }}:8000 \
-              -f frontend/Dockerfile.prod \
-              -t freelancecfo-frontend:latest \
-              ./frontend
+            echo "🗄️ Running database migrations..."
+            docker compose -f docker-compose.prod.yml run --rm \
+              -e DATABASE_URL \
+              app alembic upgrade head
 
-            echo "🏗️ Building backend image..."
-            docker build \
-              -t freelancecfo-backend:latest \
-              ./backend
+            echo "🏗️ Rebuilding containers..."
+            docker compose -f docker-compose.prod.yml up --build -d
 
-            echo "🗄️ Running migrations..."
-            docker compose -f docker-compose.prod.yml run --rm app \
-              alembic upgrade head
+            echo "⏳ Waiting for app to be healthy..."
+            sleep 10
 
-            echo "🚀 Starting services..."
-            docker compose -f docker-compose.prod.yml up -d
-
-            echo "⏳ Waiting for health check..."
-            sleep 15
+            echo "🔍 Health check..."
             curl --fail http://localhost:8000/health || exit 1
 
-            echo "🧹 Cleaning up..."
+            echo "🧹 Cleaning up old images..."
             docker image prune -f
 
-            echo "✅ Done!"
+            echo "✅ Deployment complete!"
