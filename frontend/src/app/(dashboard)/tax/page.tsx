@@ -170,7 +170,7 @@ export default function TaxPage() {
                       <Cell key={index} fill={entry.colour} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
                   <Legend
                     formatter={(value) => (
                       <span className="text-xs">{value}</span>

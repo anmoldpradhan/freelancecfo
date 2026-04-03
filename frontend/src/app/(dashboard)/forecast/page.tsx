@@ -181,7 +181,7 @@ export default function ForecastPage() {
                   axisLine={false}
                 />
                 <Tooltip
-                  formatter={(v: number) => fmt(v)}
+                  formatter={(v) => typeof v === "number" ? fmt(v) : v}
                   labelStyle={{ color: "#475569" }}
                 />
                 {/* Zero line — going below this is bad */}
@@ -265,7 +265,7 @@ export default function ForecastPage() {
                 tickLine={false}
                 axisLine={false}
               />
-              <Tooltip formatter={(v: number) => fmt(v)} />
+              <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
               <Legend />
               <Area
                 type="monotone"

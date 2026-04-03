@@ -142,7 +142,7 @@ export const invoices = {
       `/api/v1/invoices${status ? `?status=${status}` : ""}`
     ),
 
-  create: (data: Partial<Invoice>) =>
+  create: (data: InvoiceCreate) =>
     request<Invoice>("/api/v1/invoices", {
       method: "POST",
       body: JSON.stringify(data),
@@ -248,6 +248,17 @@ export interface Invoice {
   due_date: string | null;
   paid_date: string | null;
   pdf_s3_key: string | null;
+}
+
+export interface InvoiceCreate {
+  client_name: string;
+  client_email?: string;
+  line_items: LineItem[];
+  tax_rate: number;
+  currency?: string;
+  issued_date?: string;
+  due_date?: string;
+  send_immediately?: boolean;
 }
 
 export interface LineItem {

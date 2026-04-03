@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { invoices, type Invoice } from "@/lib/api";
+import { invoices, type Invoice, type InvoiceCreate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,7 @@ export default function InvoicesPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await invoices.create({
+      const payload: InvoiceCreate = {
         client_name: form.client_name,
         client_email: form.client_email || undefined,
         line_items: [
@@ -66,7 +66,8 @@ export default function InvoicesPage() {
         tax_rate: parseFloat(form.tax_rate),
         due_date: form.due_date || undefined,
         send_immediately: form.send_immediately,
-      });
+      };
+      await invoices.create(payload);
       await mutate();
       setOpen(false);
     } catch (err: any) {

@@ -200,7 +200,7 @@ export default function DashboardPage() {
                                 tick={{ fontSize: 12 }}
                                 tickFormatter={(v) => `£${v}`}
                             />
-                            <Tooltip formatter={(v: number) => fmt(v)} />
+                            <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
                             <Legend />
                             <Bar dataKey="Income" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
@@ -239,7 +239,7 @@ export default function DashboardPage() {
                                             />
                                         ))}
                                     </Pie>
-                                    <Tooltip formatter={(v: number) => fmt(v)} />
+                                    <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
                                 </PieChart>
                             </ResponsiveContainer>
 
