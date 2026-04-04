@@ -89,6 +89,32 @@ services:
       redis:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # backup — daily pg_dump to ./backups/, keeps last 7 days
+  # Files land at ./backups/backup_YYYYMMDD_HHMMSS.sql.gz on the EC2 host.
+  # ---------------------------------------------------------------------------
+  backup:
+    image: postgres:15-alpine
+    env_file: .env.prod
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      /bin/sh -c "
+        while true; do
+          PGPASSWORD=$$POSTGRES_PASSWORD pg_dump
+            -h db -U $$POSTGRES_USER $$POSTGRES_DB
+            | gzip > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql.gz
+          && find /backups -name '*.sql.gz' -mtime +7 -delete
+          && echo \"Backup complete at $$(date)\"
+          || echo \"Backup FAILED at $$(date)\"
+          sleep 86400
+        done
+      "
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:15-alpine
     env_file: .env.prod

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     telegram_bot_token: str = ""
+    # Generate with: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str = ""
 
     model_config = SettingsConfigDict(env_file="../.env", case_sensitive=False,extra="ignore")
 

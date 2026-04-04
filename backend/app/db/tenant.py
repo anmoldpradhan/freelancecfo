@@ -102,6 +102,24 @@ async def provision_tenant_schema(schema_name: str, db: AsyncSession) -> None:
         )
     """))
 
+    # Indexes on hot query columns
+    await db.execute(text(f"""
+        CREATE INDEX IF NOT EXISTS idx_transactions_date
+        ON "{schema_name}".transactions (date DESC)
+    """))
+    await db.execute(text(f"""
+        CREATE INDEX IF NOT EXISTS idx_transactions_category
+        ON "{schema_name}".transactions (category_id)
+    """))
+    await db.execute(text(f"""
+        CREATE INDEX IF NOT EXISTS idx_invoices_status
+        ON "{schema_name}".invoices (status)
+    """))
+    await db.execute(text(f"""
+        CREATE INDEX IF NOT EXISTS idx_invoices_due_date
+        ON "{schema_name}".invoices (due_date)
+    """))
+
     # Seed default categories for this tenant
     await db.execute(text(f"""
         INSERT INTO "{schema_name}".categories (name, type, is_system) VALUES

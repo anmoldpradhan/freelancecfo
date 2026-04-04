@@ -14,6 +14,9 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="Europe/London",
     enable_utc=True,
+    # redbeat stores the schedule in Redis so it survives container restarts
+    beat_scheduler="redbeat.schedulers:RedBeatScheduler",
+    redbeat_redis_url=settings.redis_url,
     # ── Beat schedule ─────────────────────────────────────────────────────────
     beat_schedule={
         # Every Monday at 8am London time
