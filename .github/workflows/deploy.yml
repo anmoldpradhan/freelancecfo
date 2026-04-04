@@ -153,7 +153,12 @@ jobs:
               sleep 5
               if [ $i -eq 24 ]; then
                 echo "❌ App did not become healthy after 2 minutes"
-                docker compose -f docker-compose.prod.yml logs app --tail=50
+                echo "--- app logs ---"
+                docker compose -f docker-compose.prod.yml --env-file .env.prod logs app --tail=50
+                echo "--- nginx logs ---"
+                docker compose -f docker-compose.prod.yml --env-file .env.prod logs nginx --tail=20
+                echo "--- container status ---"
+                docker compose -f docker-compose.prod.yml --env-file .env.prod ps
                 exit 1
               fi
             done
