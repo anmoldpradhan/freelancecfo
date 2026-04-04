@@ -143,9 +143,20 @@ jobs:
             echo "🚀 Restarting services..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
-            echo "⏳ Waiting for health check..."
-            sleep 10
-            curl --fail http://localhost/health || exit 1
+            echo "⏳ Waiting for app to be ready..."
+            for i in $(seq 1 24); do
+              if curl -sf http://localhost/health > /dev/null; then
+                echo "✅ Health check passed"
+                break
+              fi
+              echo "  attempt $i/24 — not ready yet, waiting 5s..."
+              sleep 5
+              if [ $i -eq 24 ]; then
+                echo "❌ App did not become healthy after 2 minutes"
+                docker compose -f docker-compose.prod.yml logs app --tail=50
+                exit 1
+              fi
+            done
 
             echo "🧹 Cleaning up old images..."
             docker image prune -f
