@@ -143,6 +143,9 @@ jobs:
             echo "🚀 Restarting services..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
+            echo "🔄 Reloading nginx config..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod restart nginx
+
             echo "⏳ Waiting for app to be ready..."
             for i in $(seq 1 24); do
               if curl -sf http://localhost/health > /dev/null; then
