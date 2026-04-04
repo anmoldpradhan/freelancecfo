@@ -89,7 +89,7 @@ jobs:
 
             echo "🏗️ Building frontend image..."
             docker build \
-              --build-arg NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }}:8000 \
+              --build-arg NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }} \
               -f frontend/Dockerfile.prod \
               -t freelancecfo-frontend:latest \
               ./frontend
@@ -108,7 +108,7 @@ jobs:
 
             echo "⏳ Waiting for health check..."
             sleep 15
-            curl --fail http://localhost:8000/health || exit 1
+            curl --fail http://localhost/health || exit 1
 
             echo "🧹 Cleaning up..."
             docker image prune -f

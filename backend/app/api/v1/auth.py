@@ -1,8 +1,10 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jose import JWTError
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.core.dependencies import get_db
 from app.core.security import (
@@ -18,11 +20,14 @@ from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
 )
 
+limiter = Limiter(key_func=get_remote_address)
+
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
     # 1. Check email not already taken
     existing = await db.execute(
         select(User).where(User.email == payload.email)
@@ -64,7 +69,8 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     # 1. Find user
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()

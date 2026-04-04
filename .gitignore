@@ -8,3 +8,4 @@ htmlcov/
 dist/
 node_modules/
 .next/
+TODO.md

@@ -6,6 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from datetime import date
 
+from celery.result import AsyncResult
+
 from app.core.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.schemas.transaction import (
@@ -13,6 +15,7 @@ from app.schemas.transaction import (
     TransactionConfirm, ImportResponse
 )
 from app.tasks.parse_statement import parse_csv_task, parse_pdf_task
+from app.tasks.celery_app import celery_app
 
 router = APIRouter(prefix="/api/v1/transactions", tags=["transactions"])
 
