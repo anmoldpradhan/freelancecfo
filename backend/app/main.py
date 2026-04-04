@@ -1,9 +1,9 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
 import asyncio
 
 from app.api.v1.auth import router as auth_router
@@ -17,9 +17,6 @@ from app.core.security import decode_token
 from jose import JWTError
 from app.api.v1.cfo import router as cfo_router
 from app.core.config import settings
-
-limiter = Limiter(key_func=get_remote_address)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

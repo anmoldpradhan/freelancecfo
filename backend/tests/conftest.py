@@ -5,10 +5,21 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from unittest.mock import AsyncMock, patch
 
 from app.main import app
+from app.core.limiter import limiter
 from app.core.dependencies import get_db
 from app.db.base import Base
 from app.models.user import User
 from app.models.financial_profile import FinancialProfile
+
+
+@pytest.fixture(autouse=True)
+def disable_rate_limiter():
+    """Disable slowapi rate limiting for all tests.
+    The in-memory counter persists across tests on the same app instance,
+    causing spurious 429s after the first few register/login calls."""
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
 
 # In-memory SQLite for tests — no Docker needed in CI
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

@@ -3,9 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from jose import JWTError
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
+from app.core.limiter import limiter
 from app.core.dependencies import get_db
 from app.core.security import (
     hash_password, verify_password,
@@ -19,8 +17,6 @@ from app.models.financial_profile import FinancialProfile
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
 )
-
-limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
