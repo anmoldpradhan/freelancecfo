@@ -2,7 +2,9 @@
 
 import { useState, useRef } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { transactions, type Transaction } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,7 +64,7 @@ export default function TransactionsPage() {
   });
   const [addLoading, setAddLoading] = useState(false);
 
-  const { data, mutate } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     ["transactions", page, dateFrom, dateTo, source],
     () =>
       transactions.list({
@@ -151,8 +153,9 @@ export default function TransactionsPage() {
         notes: "",
         category_id: "",
       });
+      toast.success("Transaction added");
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? "Failed to add transaction");
     } finally {
       setAddLoading(false);
     }
@@ -410,14 +413,34 @@ export default function TransactionsPage() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          {!data || data.length === 0 ? (
+          {isLoading && (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          )}
+          {error && !isLoading && (
+            <div className="p-8 text-center">
+              <p className="text-red-500 font-medium">Failed to load transactions.</p>
+              <p className="text-sm text-slate-500 mt-1">Check your connection and try refreshing.</p>
+            </div>
+          )}
+          {!isLoading && !error && (!data || data.length === 0) ? (
             <div className="p-10 text-center text-slate-500">
               <p className="font-medium">No transactions found.</p>
               <p className="text-sm mt-1">
                 Import a CSV or add one manually above.
               </p>
             </div>
-          ) : (
+          ) : !isLoading && !error && data && data.length > 0 ? (
             <>
               <table className="w-full text-sm">
                 <thead className="border-b bg-slate-50">
@@ -539,7 +562,7 @@ export default function TransactionsPage() {
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

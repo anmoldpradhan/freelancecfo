@@ -9,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     PoundSterling,
     TrendingUp,
@@ -46,10 +47,10 @@ export default function DashboardPage() {
         }));
     }, []);
     const { getCategoryName } = useCategories();
-    const { data: taxData } = useSWR("tax-estimate", tax.estimate);
-    const { data: flowData } = useSWR("cashflow", forecast.cashflow);
-    const { data: vatData } = useSWR("vat", forecast.vat);
-    const { data: txData } = useSWR("transactions", () =>
+    const { data: taxData, isLoading: taxLoading } = useSWR("tax-estimate", tax.estimate);
+    const { data: flowData, isLoading: flowLoading } = useSWR("cashflow", forecast.cashflow);
+    const { data: vatData, isLoading: vatLoading } = useSWR("vat", forecast.vat);
+    const { data: txData, isLoading: txLoading } = useSWR("transactions", () =>
         transactions.list({ page: 1 })
     );
 
@@ -104,12 +105,21 @@ export default function DashboardPage() {
                         <TrendingUp className="text-green-500" size={18} />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold text-slate-900">
-                            {taxData ? fmt(taxData.gross_income) : "—"}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            {taxData?.tax_year} tax year
-                        </p>
+                        {taxLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-32 mb-2" />
+                                <Skeleton className="h-3 w-24" />
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {taxData ? fmt(taxData.gross_income) : "—"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {taxData?.tax_year} tax year
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -122,12 +132,21 @@ export default function DashboardPage() {
                         <TrendingDown className="text-red-400" size={18} />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold text-slate-900">
-                            {taxData ? fmt(taxData.allowable_expenses) : "—"}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Net profit: {taxData ? fmt(taxData.net_profit) : "—"}
-                        </p>
+                        {taxLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-32 mb-2" />
+                                <Skeleton className="h-3 w-28" />
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {taxData ? fmt(taxData.allowable_expenses) : "—"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Net profit: {taxData ? fmt(taxData.net_profit) : "—"}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -140,12 +159,21 @@ export default function DashboardPage() {
                         <Receipt className="text-violet-500" size={18} />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold text-slate-900">
-                            {taxData ? fmt(taxData.total_liability) : "—"}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Set aside {taxData?.set_aside_recommended?.toFixed(1)}% of income
-                        </p>
+                        {taxLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-32 mb-2" />
+                                <Skeleton className="h-3 w-36" />
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {taxData ? fmt(taxData.total_liability) : "—"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Set aside {taxData?.set_aside_recommended?.toFixed(1)}% of income
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -165,14 +193,23 @@ export default function DashboardPage() {
                         />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold text-slate-900">
-                            {vatData
-                                ? `${vatData.percentage_used.toFixed(0)}%`
-                                : "—"}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                            of £90k VAT threshold used
-                        </p>
+                        {vatLoading ? (
+                            <>
+                                <Skeleton className="h-8 w-20 mb-2" />
+                                <Skeleton className="h-3 w-32" />
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {vatData
+                                        ? `${vatData.percentage_used.toFixed(0)}%`
+                                        : "—"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    of £90k VAT threshold used
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -193,23 +230,29 @@ export default function DashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={weeklyChartData}>
-                            <XAxis dataKey="week" tick={{ fontSize: 12 }} />
-                            <YAxis
-                                tick={{ fontSize: 12 }}
-                                tickFormatter={(v) => `£${v}`}
-                            />
-                            <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
-                            <Legend />
-                            <Bar dataKey="Income" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                    {flowData?.summary && (
-                        <p className="text-sm text-slate-600 mt-3 border-t pt-3">
-                            {flowData.summary}
-                        </p>
+                    {flowLoading ? (
+                        <Skeleton className="h-[260px] w-full" />
+                    ) : (
+                        <>
+                            <ResponsiveContainer width="100%" height={260}>
+                                <BarChart data={weeklyChartData}>
+                                    <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+                                    <YAxis
+                                        tick={{ fontSize: 12 }}
+                                        tickFormatter={(v) => `£${v}`}
+                                    />
+                                    <Tooltip formatter={(v) => typeof v === "number" ? fmt(v) : v} />
+                                    <Legend />
+                                    <Bar dataKey="Income" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                            {flowData?.summary && (
+                                <p className="text-sm text-slate-600 mt-3 border-t pt-3">
+                                    {flowData.summary}
+                                </p>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -279,7 +322,19 @@ export default function DashboardPage() {
                     <CardTitle className="text-base">Recent Transactions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {!txData || txData.length === 0 ? (
+                    {txLoading ? (
+                        <div className="space-y-4">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="flex items-center justify-between py-1">
+                                    <div className="space-y-1.5">
+                                        <Skeleton className="h-4 w-48" />
+                                        <Skeleton className="h-3 w-32" />
+                                    </div>
+                                    <Skeleton className="h-4 w-16" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : !txData || txData.length === 0 ? (
                         <p className="text-slate-500 text-sm">
                             No transactions yet. Import a CSV or add one manually.
                         </p>

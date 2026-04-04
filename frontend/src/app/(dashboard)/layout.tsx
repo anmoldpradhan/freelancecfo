@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { Toaster } from "sonner";
 
 interface PaymentNotification {
   amount: number;
@@ -52,6 +53,7 @@ export default function DashboardLayout({
       <main className="flex-1 overflow-auto">
         <div className="p-8">{children}</div>
       </main>
+      <Toaster position="top-right" richColors />
 
       {/* Payment toast */}
       {toast && (
