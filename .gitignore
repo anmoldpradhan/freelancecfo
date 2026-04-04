@@ -10,3 +10,5 @@ node_modules/
 .next/
 TODO.md
 PROGRESS.md
+./frontend/AGENTS.md
+./frontend/CLAUDE.md
