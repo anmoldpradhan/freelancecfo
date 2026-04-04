@@ -126,7 +126,7 @@ jobs:
           script: |
             set -e
             echo "📥 Pulling latest code..."
-            cd /home/$EC2_USER/freelancecfo
+            cd $HOME/freelancecfo
             git fetch origin main
             git reset --hard origin/main
 
