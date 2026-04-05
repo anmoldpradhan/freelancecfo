@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Download, Send, CheckCircle, FileX } from "lucide-react";
+import { Plus, Download, Send, CheckCircle, FileX, Ban } from "lucide-react";
 
 const STATUS_COLOURS: Record<string, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -87,6 +87,17 @@ export default function InvoicesPage() {
       toast.success("Marked as paid");
     } catch (err: any) {
       toast.error(err.message ?? "Failed to update status");
+    }
+  };
+
+  const voidInvoice = async (id: string) => {
+    if (!confirm("Void this invoice? This cannot be undone.")) return;
+    try {
+      await invoices.void(id);
+      await mutate();
+      toast.success("Invoice voided");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to void invoice");
     }
   };
 
@@ -276,6 +287,15 @@ export default function InvoicesPage() {
                             title="Mark paid"
                           >
                             <CheckCircle size={14} className="text-green-500" />
+                          </button>
+                        )}
+                        {(inv.status === "draft" || inv.status === "sent") && (
+                          <button
+                            onClick={() => voidInvoice(inv.id)}
+                            className="p-1.5 rounded hover:bg-red-50"
+                            title="Void invoice"
+                          >
+                            <Ban size={14} className="text-slate-400 hover:text-red-500" />
                           </button>
                         )}
                       </div>

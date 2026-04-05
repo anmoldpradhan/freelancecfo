@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart,
   Area,
@@ -37,9 +38,9 @@ const ALERT_STYLES: Record<string, string> = {
 };
 
 export default function ForecastPage() {
-  const { data: flowData, error: flowError } =
+  const { data: flowData, error: flowError, isLoading: flowLoading } =
     useSWR("cashflow-full", forecast.cashflow);
-  const { data: vatData } = useSWR("vat-full", forecast.vat);
+  const { data: vatData, isLoading: vatLoading } = useSWR("vat-full", forecast.vat);
 
   const chartData = flowData?.weeks.map((w) => ({
     week: w.week_start.slice(5),       // MM-DD
@@ -73,6 +74,7 @@ export default function ForecastPage() {
       </div>
 
       {/* Summary banner */}
+      {flowLoading && <Skeleton className="h-12 w-full rounded-lg" />}
       {flowData && (
         <div
           className={`rounded-lg border p-4 text-sm font-medium ${
@@ -96,6 +98,18 @@ export default function ForecastPage() {
       )}
 
       {/* Averages */}
+      {flowLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-4 space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-7 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
       {flowData && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
@@ -143,8 +157,8 @@ export default function ForecastPage() {
             <p className="text-red-500 text-sm">
               Failed to load forecast data.
             </p>
-          ) : !flowData ? (
-            <p className="text-slate-500 text-sm">Loading...</p>
+          ) : flowLoading ? (
+            <Skeleton className="h-[300px] w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart
@@ -382,6 +396,18 @@ export default function ForecastPage() {
       </Card>
 
       {/* VAT threshold card */}
+      {vatLoading && (
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-full rounded-full" />
+            <Skeleton className="h-3 w-32 ml-auto" />
+          </CardContent>
+        </Card>
+      )}
       {vatData && (
         <Card
           className={

@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { transactions, type Transaction } from "@/lib/api";
+import { transactions } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
   TrendingDown,
   CheckCircle,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { useCategories } from "@/lib/use-categories";
 
@@ -132,6 +133,17 @@ export default function TransactionsPage() {
     }
     setImportMsg("⚠️ Import is taking longer than expected. Check back shortly.");
   };
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this transaction? This cannot be undone.")) return;
+    try {
+      await transactions.delete(id);
+      await mutate();
+      toast.success("Transaction deleted");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to delete transaction");
+    }
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddLoading(true);
@@ -452,6 +464,7 @@ export default function TransactionsPage() {
                       "Amount",
                       "Source",
                       "Status",
+                      "",
                     ].map((h) => (
                       <th
                         key={h}
@@ -530,6 +543,15 @@ export default function TransactionsPage() {
                               : "Pending"}
                           </span>
                         )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleDelete(tx.id)}
+                          className="p-1.5 rounded hover:bg-red-50"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} className="text-slate-400 hover:text-red-500" />
+                        </button>
                       </td>
                     </tr>
                   ))}

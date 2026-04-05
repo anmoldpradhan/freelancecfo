@@ -172,6 +172,26 @@ async def confirm_transaction(
     )
 
 
+@router.delete("/{transaction_id}", status_code=204)
+async def delete_transaction(
+    transaction_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently deletes a transaction belonging to this tenant."""
+    schema = current_user.tenant_schema
+
+    result = await db.execute(text(f"""
+        DELETE FROM "{schema}".transactions
+        WHERE id = :id
+        RETURNING id
+    """), {"id": str(transaction_id)})
+    await db.commit()
+
+    if not result.fetchone():
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+
 @router.post("/import/csv", response_model=ImportResponse, status_code=202)
 async def import_csv(
     file: UploadFile = File(...),

@@ -122,6 +122,9 @@ export const transactions = {
       body: JSON.stringify(data),
     }),
 
+  delete: (id: string) =>
+    request<null>(`/api/v1/transactions/${id}`, { method: "DELETE" }),
+
   importCsv: (file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -156,6 +159,12 @@ export const invoices = {
 
   send: (id: string) =>
     request(`/api/v1/invoices/${id}/send`, { method: "POST" }),
+
+  void: (id: string) =>
+    request<Invoice>(`/api/v1/invoices/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "void" }),
+    }),
 
   downloadPdf: async (id: string, filename: string) => {
     const token = getToken();
