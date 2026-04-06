@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { auth, clearTokens } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ProfilePage() {
+    const router = useRouter();
     const [profile, setProfile] = useState({
         trading_name: "",
         base_currency: "GBP",
@@ -20,6 +24,8 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
+    const [deletePassword, setDeletePassword] = useState("");
+    const [deleting, setDeleting] = useState(false);
 
     const headers = {
         "Content-Type": "application/json",
@@ -39,7 +45,26 @@ export default function ProfilePage() {
             .catch(() => setLoading(false));
     }, []);
 
-    const handleSave = async (e: React.FormEvent) => {
+    const handleDeleteAccount = async () => {
+        if (!deletePassword) {
+            toast.error("Enter your password to confirm deletion");
+            return;
+        }
+        if (!confirm("This will permanently delete your account and ALL your data. This cannot be undone.")) return;
+        setDeleting(true);
+        try {
+            const refresh_token = localStorage.getItem("refresh_token") ?? undefined;
+            await auth.deleteAccount(deletePassword, refresh_token);
+            clearTokens();
+            router.push("/login");
+        } catch (err: any) {
+            toast.error(err.message ?? "Failed to delete account");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSaving(true);
         setMessage("");
@@ -203,6 +228,36 @@ export default function ProfilePage() {
                     {saving ? "Saving..." : "Save Profile"}
                 </Button>
             </form>
+
+            {/* Danger zone */}
+            <Card className="border-red-200">
+                <CardHeader>
+                    <CardTitle className="text-base text-red-600">Danger Zone</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-sm text-slate-600">
+                        Permanently delete your account and all associated data. This cannot be undone.
+                    </p>
+                    <div className="space-y-1">
+                        <Label>Confirm with your password</Label>
+                        <Input
+                            type="password"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            placeholder="Enter password to confirm"
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                        disabled={deleting}
+                        onClick={handleDeleteAccount}
+                    >
+                        {deleting ? "Deleting..." : "Delete My Account"}
+                    </Button>
+                </CardContent>
+            </Card>
         </div>
     );
 }

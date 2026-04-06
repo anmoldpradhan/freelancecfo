@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { Sidebar } from "@/components/sidebar";
 import { Toaster } from "sonner";
+import { LayoutDashboard, ArrowLeftRight, FileText, TrendingUp, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const mobileNav = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+  { href: "/transactions", icon: ArrowLeftRight, label: "Transactions" },
+  { href: "/invoices", icon: FileText, label: "Invoices" },
+  { href: "/forecast", icon: TrendingUp, label: "Forecast" },
+  { href: "/cfo", icon: MessageSquare, label: "CFO" },
+];
 
 interface PaymentNotification {
   amount: number;
@@ -17,6 +28,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [toast, setToast] = useState<PaymentNotification | null>(null);
 
   useEffect(() => {
@@ -51,9 +63,28 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="p-8">{children}</div>
+        <div className="p-4 md:p-8 pb-20 md:pb-8">{children}</div>
       </main>
       <Toaster position="top-right" richColors />
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40">
+        {mobileNav.map(({ href, icon: Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center py-2 text-xs gap-1 transition-colors",
+              pathname === href
+                ? "text-violet-600"
+                : "text-slate-400 hover:text-slate-700"
+            )}
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </nav>
 
       {/* Payment toast */}
       {toast && (

@@ -15,8 +15,11 @@ from app.db.tenant import generate_tenant_schema, provision_tenant_schema
 from app.models.user import User
 from app.models.financial_profile import FinancialProfile
 from app.schemas.auth import (
-    RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
+    RegisterRequest, LoginRequest, TokenResponse, RefreshRequest,
+    DeleteAccountRequest,
 )
+from app.core.dependencies import get_current_user
+from sqlalchemy import text
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -133,4 +136,45 @@ async def logout(payload: RefreshRequest):
     The access token expires naturally — 30 min max exposure.
     """
     await redis_client.delete(f"refresh:{payload.refresh_token}")
+    return None
+
+
+@router.delete("/account", status_code=204)
+async def delete_account(
+    payload: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Permanently deletes the user's account and all their data (GDPR right to erasure).
+    Requires password confirmation to prevent accidental or malicious deletion.
+    """
+    # 1. Verify password
+    if not verify_password(payload.password, current_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    schema = current_user.tenant_schema
+    user_id = str(current_user.id)
+
+    # 2. Drop the entire tenant schema and all its tables (CASCADE)
+    await db.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+
+    # 3. Delete financial profile (foreign key to users)
+    await db.execute(
+        text("DELETE FROM public.financial_profiles WHERE user_id = :uid"),
+        {"uid": user_id},
+    )
+
+    # 4. Delete the user row
+    await db.execute(
+        text("DELETE FROM public.users WHERE id = :uid"),
+        {"uid": user_id},
+    )
+
+    await db.commit()
+
+    # 5. Revoke refresh token if provided
+    if payload.refresh_token:
+        await redis_client.delete(f"refresh:{payload.refresh_token}")
+
     return None

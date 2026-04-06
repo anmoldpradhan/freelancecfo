@@ -91,17 +91,6 @@ async def provision_tenant_schema(schema_name: str, db: AsyncSession) -> None:
         )
     """))
 
-    await db.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS "{schema_name}".cash_flow_forecasts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            forecast_date DATE NOT NULL,
-            projected_income NUMERIC(12,2) DEFAULT 0,
-            projected_expenses NUMERIC(12,2) DEFAULT 0,
-            confidence NUMERIC(4,3) DEFAULT 0.500,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        )
-    """))
-
     # Indexes on hot query columns
     await db.execute(text(f"""
         CREATE INDEX IF NOT EXISTS idx_transactions_date

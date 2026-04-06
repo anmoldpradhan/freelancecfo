@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { transactions } from "@/lib/api";
+import { transactions, type Transaction } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Clock,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { useCategories } from "@/lib/use-categories";
 
@@ -64,6 +65,8 @@ export default function TransactionsPage() {
     category_id: "",
   });
   const [addLoading, setAddLoading] = useState(false);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     ["transactions", page, dateFrom, dateTo, source],
@@ -144,8 +147,30 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleEditSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!editTx) return;
+    setEditLoading(true);
+    try {
+      await transactions.update(editTx.id, {
+        date: editTx.date,
+        description: editTx.description,
+        amount: editTx.amount,
+        notes: editTx.notes ?? undefined,
+        category_id: editTx.category_id ?? undefined,
+      });
+      await mutate();
+      setEditTx(null);
+      toast.success("Transaction updated");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to update transaction");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleAdd = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setAddLoading(true);
     try {
       await transactions.create({
@@ -176,7 +201,7 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
           <p className="text-slate-500 text-sm">
@@ -454,7 +479,8 @@ export default function TransactionsPage() {
             </div>
           ) : !isLoading && !error && data && data.length > 0 ? (
             <>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
                 <thead className="border-b bg-slate-50">
                   <tr>
                     {[
@@ -545,18 +571,28 @@ export default function TransactionsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleDelete(tx.id)}
-                          className="p-1.5 rounded hover:bg-red-50"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} className="text-slate-400 hover:text-red-500" />
-                        </button>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setEditTx(tx)}
+                            className="p-1.5 rounded hover:bg-violet-50"
+                            title="Edit"
+                          >
+                            <Pencil size={14} className="text-slate-400 hover:text-violet-500" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tx.id)}
+                            className="p-1.5 rounded hover:bg-red-50"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} className="text-slate-400 hover:text-red-500" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Pagination */}
               <div className="flex items-center justify-between
@@ -587,6 +623,82 @@ export default function TransactionsPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      {/* Edit dialog */}
+      {editTx && (
+        <Dialog open={!!editTx} onOpenChange={(open) => { if (!open) setEditTx(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Transaction</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div className="space-y-1">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={editTx.date}
+                  onChange={(e) => setEditTx({ ...editTx, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Description</Label>
+                <Input
+                  value={editTx.description}
+                  onChange={(e) => setEditTx({ ...editTx, description: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Amount (£)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editTx.amount}
+                  onChange={(e) => setEditTx({ ...editTx, amount: parseFloat(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Category</Label>
+                <select
+                  value={editTx.category_id ?? ""}
+                  onChange={(e) => setEditTx({ ...editTx, category_id: e.target.value || null })}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">— No category —</option>
+                  {categoryList.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Notes (optional)</Label>
+                <Input
+                  value={editTx.notes ?? ""}
+                  onChange={(e) => setEditTx({ ...editTx, notes: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-violet-600 hover:bg-violet-700"
+                  disabled={editLoading}
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditTx(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

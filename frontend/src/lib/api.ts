@@ -95,6 +95,12 @@ export const auth = {
       method: "POST",
       body: JSON.stringify({ refresh_token }),
     }),
+
+  deleteAccount: (password: string, refresh_token?: string) =>
+    request<null>("/api/v1/auth/account", {
+      method: "DELETE",
+      body: JSON.stringify({ password, refresh_token }),
+    }),
 };
 
 // ── Transactions ──────────────────────────────────────────────────────────────
@@ -119,6 +125,12 @@ export const transactions = {
   create: (data: Partial<Transaction>) =>
     request<Transaction>("/api/v1/transactions", {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<Pick<Transaction, "date" | "description" | "amount" | "notes" | "category_id">>) =>
+    request<Transaction>(`/api/v1/transactions/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 

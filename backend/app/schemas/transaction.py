@@ -42,6 +42,21 @@ class TransactionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TransactionUpdate(BaseModel):
+    date: Optional[date] = None
+    description: Optional[str] = None
+    amount: Optional[Decimal] = None
+    notes: Optional[str] = None
+    category_id: Optional[uuid.UUID] = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_not_zero(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        if v is not None and v == 0:
+            raise ValueError("Amount cannot be zero")
+        return v
+
+
 class TransactionConfirm(BaseModel):
     category_id: uuid.UUID
 

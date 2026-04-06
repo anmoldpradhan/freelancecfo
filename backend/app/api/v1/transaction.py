@@ -8,10 +8,12 @@ from datetime import date
 
 from celery.result import AsyncResult
 
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import Request
 from app.core.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.schemas.transaction import (
-    TransactionCreate, TransactionResponse,
+    TransactionCreate, TransactionUpdate, TransactionResponse,
     TransactionConfirm, ImportResponse
 )
 from app.tasks.parse_statement import parse_csv_task, parse_pdf_task
@@ -172,6 +174,59 @@ async def confirm_transaction(
     )
 
 
+@router.patch("/{transaction_id}", response_model=TransactionResponse)
+async def update_transaction(
+    transaction_id: uuid.UUID,
+    payload: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Updates editable fields on a transaction."""
+    schema = current_user.tenant_schema
+
+    updates = {}
+    if payload.date is not None:
+        updates["date"] = payload.date
+    if payload.description is not None:
+        updates["description"] = payload.description
+    if payload.amount is not None:
+        updates["amount"] = float(payload.amount)
+    if payload.notes is not None:
+        updates["notes"] = payload.notes
+    if payload.category_id is not None:
+        updates["category_id"] = str(payload.category_id)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    updates["id"] = str(transaction_id)
+
+    try:
+        result = await db.execute(text(f"""
+            UPDATE "{schema}".transactions
+            SET {set_clause}
+            WHERE id = :id
+            RETURNING id, date, description, amount, currency,
+                      category_id, confidence, source, is_confirmed, notes
+        """), updates)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="category_id does not exist")
+
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    return TransactionResponse(
+        id=row.id, date=row.date, description=row.description,
+        amount=row.amount, currency=row.currency, category_id=row.category_id,
+        confidence=row.confidence, source=row.source,
+        is_confirmed=row.is_confirmed, notes=row.notes,
+    )
+
+
 @router.delete("/{transaction_id}", status_code=204)
 async def delete_transaction(
     transaction_id: uuid.UUID,
@@ -194,6 +249,7 @@ async def delete_transaction(
 
 @router.post("/import/csv", response_model=ImportResponse, status_code=202)
 async def import_csv(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
@@ -205,13 +261,14 @@ async def import_csv(
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a .csv")
 
+    trace_id = getattr(request.state, "trace_id", "-")
     contents = await file.read()
 
-    # Celery can't serialise raw bytes — encode as hex string
     task = parse_csv_task.delay(
         contents.hex(),
         current_user.tenant_schema,
         str(current_user.id),
+        trace_id,
     )
 
     return ImportResponse(
@@ -222,18 +279,21 @@ async def import_csv(
 
 @router.post("/import/pdf", response_model=ImportResponse, status_code=202)
 async def import_pdf(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="File must be a .pdf")
 
+    trace_id = getattr(request.state, "trace_id", "-")
     contents = await file.read()
 
     task = parse_pdf_task.delay(
         contents.hex(),
         current_user.tenant_schema,
         str(current_user.id),
+        trace_id,
     )
 
     return ImportResponse(

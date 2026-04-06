@@ -31,7 +31,7 @@ export function Sidebar() {
     const { logout } = useAuth();
 
     return (
-        <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col">
+        <aside className="hidden md:flex w-64 min-h-screen bg-slate-900 text-white flex-col">
             {/* Logo */}
             <div className="p-6 border-b border-slate-700">
                 <h1 className="text-xl font-bold text-violet-400">FreelanceCFO</h1>

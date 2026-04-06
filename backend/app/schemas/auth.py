@@ -27,3 +27,8 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token:str
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str
+    refresh_token: str | None = None

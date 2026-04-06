@@ -52,18 +52,23 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    request_id = str(_uuid.uuid4())[:8]
+    # Honour incoming X-Request-ID (e.g. from ALB / nginx) or generate one
+    trace_id = request.headers.get("X-Request-ID") or str(_uuid.uuid4())[:12]
+    request.state.trace_id = trace_id
+
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
+
     logger.info(
-        "%s %s %s %.1fms id=%s",
+        "%s %s %s %.1fms trace=%s",
         request.method,
         request.url.path,
         response.status_code,
         duration_ms,
-        request_id,
+        trace_id,
     )
+    response.headers["X-Request-ID"] = trace_id
     return response
 
 

@@ -1,6 +1,9 @@
+import logging
 from datetime import date as date_type
 from app.tasks.celery_app import celery_app
 from app.services.statement_parser import parse_csv, parse_pdf
+
+logger = logging.getLogger("freelancecfo.tasks")
 
 
 def _coerce_date(value) -> date_type:
@@ -21,7 +24,7 @@ def _make_session_factory():
 
 
 @celery_app.task(name="parse_statement_csv", bind=True, max_retries=3)
-def parse_csv_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str):
+def parse_csv_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str, trace_id: str = "-"):
     """
     Parses a CSV file and stores transactions in the tenant schema.
     file_bytes_hex: file contents encoded as hex string (Celery can't send raw bytes)
@@ -32,10 +35,12 @@ def parse_csv_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str):
         import asyncio
         from sqlalchemy import text
 
+        logger.info("csv_import start user=%s trace=%s", user_id, trace_id)
         file_bytes = bytes.fromhex(file_bytes_hex)
         transactions = parse_csv(file_bytes)
 
         if not transactions:
+            logger.info("csv_import no_rows user=%s trace=%s", user_id, trace_id)
             return {"status": "complete", "imported": 0, "message": "No transactions found"}
 
         # Run async DB operations in sync Celery task.
@@ -81,21 +86,23 @@ def parse_csv_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str):
                 return inserted
 
         count = asyncio.run(_save())
+        logger.info("csv_import done imported=%d user=%s trace=%s", count, user_id, trace_id)
         return {"status": "complete", "imported": count}
 
     except Exception as exc:
-        # Retry up to 3 times with exponential backoff
+        logger.error("csv_import error user=%s trace=%s err=%s", user_id, trace_id, exc)
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
 
 
 @celery_app.task(name="parse_statement_pdf", bind=True, max_retries=3)
-def parse_pdf_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str):
+def parse_pdf_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str, trace_id: str = "-"):
     """Same flow as CSV but uses PDF parser."""
     try:
         from app.services.categoriser import categorise_transactions
         import asyncio
         from sqlalchemy import text
 
+        logger.info("pdf_import start user=%s trace=%s", user_id, trace_id)
         file_bytes = bytes.fromhex(file_bytes_hex)
         transactions = parse_pdf(file_bytes)
 
@@ -138,7 +145,9 @@ def parse_pdf_task(self, file_bytes_hex: str, tenant_schema: str, user_id: str):
                 return inserted
 
         count = asyncio.run(_save())
+        logger.info("pdf_import done imported=%d user=%s trace=%s", count, user_id, trace_id)
         return {"status": "complete", "imported": count}
 
     except Exception as exc:
+        logger.error("pdf_import error user=%s trace=%s err=%s", user_id, trace_id, exc)
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)

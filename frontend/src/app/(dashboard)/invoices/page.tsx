@@ -51,7 +51,7 @@ export default function InvoicesPage() {
     send_immediately: false,
   });
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -113,7 +113,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
           <p className="text-slate-500 text-sm">
@@ -222,7 +222,8 @@ export default function InvoicesPage() {
 
           {/* Table */}
           {!isLoading && !error && data && data.length > 0 && (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="border-b bg-slate-50">
                 <tr>
                   {["Invoice", "Client", "Amount", "Due", "Status", "Actions"].map(
@@ -304,6 +305,7 @@ export default function InvoicesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </CardContent>
       </Card>
